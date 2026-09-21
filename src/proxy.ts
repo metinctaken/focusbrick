@@ -1,19 +1,13 @@
-import { type NextRequest } from 'next/server'
-import { updateSession } from '@/lib/supabase/middleware'
+import { type NextRequest, NextResponse } from 'next/server'
 
-export async function proxy(request: NextRequest) {
-  return await updateSession(request)
+// Auth is handled client-side via sessionStorage.
+// Proxy just passes requests through without modification.
+export function proxy(request: NextRequest) {
+  return NextResponse.next()
 }
 
 export const config = {
   matcher: [
-    /*
-     * Aşağıdakiler hariç tüm rotaları eşleştir:
-     * - _next/static (static dosyalar)
-     * - _next/image (image optimization dosyaları)
-     * - favicon.ico (favicon dosyası)
-     * - public klasörü içindeki dosyalar
-     */
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 }
