@@ -1,0 +1,62 @@
+FOCUSBRICK - PROJE NOTLARI
+============================
+Son güncelleme: 21 Eylül 2026
+
+## NE YAPTIK
+
+### Login Sayfası (src/app/login/page.tsx)
+- Kara ekran, matrix benzeri beyaz karakter yağmuru arka plan
+- Kapı açılma animasyonu (iki panel sola/sağa kayar, ortada parlak beyaz laser çizgisi)
+- Şifre: "fidelio"
+- Şifre kutusunda glow ring focus efekti, hatalı girişte kırmızı flash + sarsılma
+- Doğru şifrede: matrix hızlanıp ekrandan çıkar → "MERHABA / METİNC" büyük animasyon → dashboard'a yönlendirir
+- sessionStorage'a 'authenticated' = 'true' yazar
+
+### Sidebar (src/components/Sidebar.tsx) - ESKİ, BASİT VERSIYON
+- Siyah arka plan, beyaz ince çerçeve
+- 3 link: Ana Sayfa / Ders Programı / Görevler
+- Font: mono
+
+### DashboardLayout (src/components/DashboardLayout.tsx)
+- sessionStorage kontrolü, yoksa /login'e atar
+- Sol sidebar + sağda main content
+
+### Ana Sayfa (src/app/page.tsx) - ESKİ
+- Supabase'den 'daily_tasks' tablosunu çeker (o tablo henüz yok!)
+- Görevleri listeler, tamamlama toggle'ı var
+- Font: mono
+
+### DB Layer (src/lib/db.ts) - YENİ
+- schedule_items, daily_habits, completions tablolarını sorgular
+- fetchSchedule, addScheduleItem, deleteScheduleItem
+- fetchHabits, addHabit, deleteHabit
+- fetchCompletions, toggleCompletion, fetchAllCompletions
+- today() ve todayDayIndex() yardımcı fonksiyonlar
+
+## SUPABASE TABLOLARI (henüz oluşturulmadı!)
+Migration SQL dosyası: 
+  C:\Users\hayko\.gemini\antigravity\brain\7a21937e...\supabase_migration.sql
+
+Tablolar:
+  - schedule_items (haftalık ders programı)
+  - daily_habits   (spor, tekrarlayan günlük görevler)
+  - completions    (hangi gün ne tamamlandı)
+
+## YAPILACAKLAR (devam ediyor)
+[ ] Ana sayfa UI - login ile aynı stil (bg-black, ince borders, framer-motion)
+[ ] Sidebar'ı yeni stille yeniden yaz (ikonlu, animate)
+[ ] Ders Programı sayfası (src/app/schedule/page.tsx)
+[ ] Günlük Görevler sayfası (src/app/tasks/page.tsx)
+[ ] Duvar sayfası (src/app/wall/page.tsx)
+[ ] Supabase migration SQL'i çalıştırmak (kullanıcı yapacak)
+
+## STİL DİLİ (login sayfasından alınan referans)
+- bg-black zemin
+- bg-zinc-950 panel / sidebar
+- border-white/[0.05-0.10] ince çerçeveler
+- text-zinc-600, text-zinc-500 ikincil metinler
+- tracking-[0.3em-0.5em] uppercase etiketler, 9-11px
+- font-geist-sans (var(--font-geist-sans))
+- framer-motion AnimatePresence + spring geçişler
+- border-dashed kesik çizgiler bölücü olarak
+- h-px gradient çizgiler: from-transparent via-white/20 to-transparent
