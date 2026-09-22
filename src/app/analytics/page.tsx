@@ -4,9 +4,13 @@ import { useEffect, useState } from 'react'
 import { motion, AnimatePresence } from 'framer-motion'
 import DashboardLayout from '@/components/DashboardLayout'
 import { createClient } from '@/lib/supabase/client'
+import { 
+  BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip as RechartsTooltip, ResponsiveContainer,
+  LineChart, Line, AreaChart, Area, PieChart, Pie, Cell, Legend
+} from 'recharts'
 
 export default function AnalyticsPage() {
-  const [tab, setTab] = useState<'tasks' | 'wallet' | 'study'>('tasks')
+  const [tab, setTab] = useState<'tasks' | 'study' | 'wallet'>('tasks')
   const [loading, setLoading] = useState(true)
 
   // Data
@@ -36,35 +40,48 @@ export default function AnalyticsPage() {
     setLoading(false)
   }
 
-  // Tasks Analysis
-  const totalTasks = completions.length
-  const uniqueDays = new Set(completions.map(c => c.completed_date)).size
+  // --- Tasks Analysis ---
+  const taskCompletions = completions.filter(c => c.item_type === 'habit' || c.item_type === 'schedule')
+  const totalTasks = taskCompletions.length
+  const uniqueDays = new Set(taskCompletions.map(c => c.completed_date)).size
   
-  // Last 7 days map for tasks
-  const last7Days = Array.from({ length: 7 }).map((_, i) => {
+  // Last 14 days map for tasks
+  const last14Days = Array.from({ length: 14 }).map((_, i) => {
     const d = new Date()
-    d.setDate(d.getDate() - (6 - i))
+    d.setDate(d.getDate() - (13 - i))
     return d.toISOString().split('T')[0]
   })
   
-  const tasksByDay = last7Days.map(date => ({
-    date,
-    count: completions.filter(c => c.completed_date === date).length
+  const tasksChartData = last14Days.map(date => ({
+    date: date.slice(-2) + '/' + date.slice(5,7),
+    count: taskCompletions.filter(c => c.completed_date === date).length
   }))
-  const maxTasks = Math.max(...tasksByDay.map(t => t.count), 1)
 
-  // Study Analysis
+  const habitCategoryData = Object.entries(
+    completions.filter(c => c.item_type === 'habit').reduce((acc, c) => {
+      const hab = habits.find(h => h.id === c.item_id)
+      if (hab) {
+        const cat = hab.category
+        acc[cat] = (acc[cat] || 0) + 1
+      }
+      return acc
+    }, {} as Record<string, number>)
+  ).map(([name, value]) => {
+    const labels: Record<string, string> = { health: 'Sağlık', career: 'Kariyer', mind: 'Zihin', finance: 'Finans', personal: 'Kişisel' }
+    return { name: labels[name] || name, value }
+  })
+  const COLORS = ['#10b981', '#3b82f6', '#8b5cf6', '#f59e0b', '#ec4899', '#64748b']
+
+  // --- Study Analysis ---
   const studyCompletions = completions.filter(c => c.item_type === 'schedule')
   const totalStudyHours = studyCompletions.reduce((a, c) => a + (Number(c.duration_hours) || 0), 0)
   
-  const studyHoursByDay = last7Days.map(date => {
+  const studyChartData = last14Days.map(date => {
     const dayComps = studyCompletions.filter(c => c.completed_date === date)
     const hours = dayComps.reduce((a, c) => a + (Number(c.duration_hours) || 0), 0)
-    return { date, hours }
+    return { date: date.slice(-2) + '/' + date.slice(5,7), hours: Number(hours.toFixed(1)) }
   })
-  const maxStudyHours = Math.max(...studyHoursByDay.map(d => d.hours), 1)
 
-  // Subject Breakdown
   const subjectHours: Record<string, number> = {}
   studyCompletions.forEach(c => {
     const item = scheduleItems.find(s => s.id === c.item_id)
@@ -72,208 +89,190 @@ export default function AnalyticsPage() {
       subjectHours[item.subject] = (subjectHours[item.subject] || 0) + (Number(c.duration_hours) || 0)
     }
   })
-  const sortedSubjects = Object.entries(subjectHours).sort((a, b) => b[1] - a[1])
+  const subjectChartData = Object.entries(subjectHours)
+    .map(([name, hours]) => ({ name, hours: Number(hours.toFixed(1)) }))
+    .sort((a, b) => b.hours - a.hours)
 
-  // Wallet Analysis
+  // --- Wallet Analysis ---
   const incomes = transactions.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0)
   const expenses = transactions.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0)
   
+  const walletFlowData = last14Days.map(date => {
+    const dayTxs = transactions.filter(t => t.created_at?.startsWith(date))
+    const inc = dayTxs.filter(t => t.type === 'income').reduce((a, b) => a + b.amount, 0)
+    const exp = dayTxs.filter(t => t.type === 'expense').reduce((a, b) => a + b.amount, 0)
+    return { date: date.slice(-2) + '/' + date.slice(5,7), Gelir: inc, Gider: exp }
+  })
+
+  const CustomTooltip = ({ active, payload, label }: any) => {
+    if (active && payload && payload.length) {
+      return (
+        <div className="bg-zinc-900 border border-white/10 p-3 rounded-xl shadow-xl">
+          <p className="text-[10px] text-zinc-400 mb-1">{label}</p>
+          {payload.map((p: any, i: number) => (
+            <p key={i} className="text-[12px] font-bold" style={{ color: p.color || p.fill }}>
+              {p.name}: {p.value}
+            </p>
+          ))}
+        </div>
+      )
+    }
+    return null
+  }
+
   return (
     <DashboardLayout>
-      <div style={{ fontFamily: 'var(--font-geist-sans)' }} className="max-w-4xl">
-        <motion.div initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} className="flex items-end justify-between mb-8">
+      <div style={{ fontFamily: 'var(--font-geist-sans)' }} className="max-w-5xl mx-auto pb-12">
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ duration: 0.5 }} className="flex flex-col md:flex-row md:items-end justify-between gap-4 mb-8">
           <div>
             <p className="text-[10px] tracking-[0.5em] text-zinc-600 uppercase mb-2">Genel Bakış</p>
-            <h1 className="text-[28px] font-bold text-white leading-none tracking-tight">Analiz</h1>
+            <h1 className="text-[28px] font-bold text-white leading-none tracking-tight">Analiz ve İstatistikler</h1>
           </div>
-          <div className="flex bg-white/[0.03] p-1 rounded-xl">
-            <button onClick={() => setTab('tasks')}
-              className={`px-4 sm:px-6 py-2 text-[10px] font-bold tracking-widest uppercase rounded-lg transition-all
-                ${tab === 'tasks' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>Görevler</button>
-            <button onClick={() => setTab('study')}
-              className={`px-4 sm:px-6 py-2 text-[10px] font-bold tracking-widest uppercase rounded-lg transition-all
-                ${tab === 'study' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>Çalışma</button>
-            <button onClick={() => setTab('wallet')}
-              className={`px-4 sm:px-6 py-2 text-[10px] font-bold tracking-widest uppercase rounded-lg transition-all
-                ${tab === 'wallet' ? 'bg-white/10 text-white' : 'text-zinc-600 hover:text-zinc-400'}`}>Bakiye</button>
+          <div className="flex bg-white/[0.03] p-1 rounded-xl w-full md:w-auto overflow-x-auto border border-white/[0.05]">
+            {(['tasks', 'study', 'wallet'] as const).map(t => (
+              <button key={t} onClick={() => setTab(t)}
+                className={`flex-1 md:flex-none px-6 py-2.5 text-[10px] font-bold tracking-widest uppercase rounded-lg transition-all
+                  ${tab === t ? 'bg-white/[0.08] text-white shadow-sm' : 'text-zinc-500 hover:text-zinc-300 hover:bg-white/[0.02]'}`}>
+                {t === 'tasks' ? 'Görevler' : t === 'study' ? 'Çalışma' : 'Bakiye'}
+              </button>
+            ))}
           </div>
         </motion.div>
 
-        <motion.div className="h-px w-full bg-gradient-to-r from-transparent via-white/10 to-transparent mb-8" />
-
         {loading ? (
-          <div className="text-center py-20 text-[10px] tracking-[0.4em] text-zinc-700 uppercase">Hesaplanıyor</div>
+          <div className="flex justify-center py-20">
+            <motion.div animate={{ opacity: [0.3, 1, 0.3] }} transition={{ duration: 1.2, repeat: Infinity }}
+              className="text-[10px] tracking-[0.4em] text-zinc-700 uppercase">Veriler Yükleniyor</motion.div>
+          </div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div
               key={tab}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -10 }}
-              transition={{ duration: 0.3 }}
+              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -12 }}
+              transition={{ duration: 0.4 }}
             >
               {tab === 'tasks' && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-zinc-500 uppercase mb-2">Toplam Tamamlama</p>
-                      <p className="text-[32px] font-bold text-white">{totalTasks}</p>
-                    </div>
-                    <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-zinc-500 uppercase mb-2">Aktif Gün</p>
-                      <p className="text-[32px] font-bold text-white">{uniqueDays}</p>
-                    </div>
+                    <StatCard title="Toplam Tamamlama" value={totalTasks} />
+                    <StatCard title="Aktif Gün" value={uniqueDays} />
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-8">Son 7 Günlük Aktivite Grafiği</p>
-                    <div className="flex items-end justify-between h-[150px] gap-2">
-                      {tasksByDay.map((d, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-3">
-                          <div className="w-full bg-white/[0.03] rounded-t-sm flex items-end justify-center relative overflow-hidden" style={{ height: '100%' }}>
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: `${(d.count / maxTasks) * 100}%` }}
-                              transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
-                              className="w-full bg-white/80"
-                            />
-                          </div>
-                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest">{d.date.slice(-2)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <ChartCard title="Son 14 Günlük Aktivite" className="lg:col-span-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <AreaChart data={tasksChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                          <defs>
+                            <linearGradient id="colorTasks" x1="0" y1="0" x2="0" y2="1">
+                              <stop offset="5%" stopColor="#10b981" stopOpacity={0.3}/>
+                              <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                            </linearGradient>
+                          </defs>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} />
+                          <RechartsTooltip content={<CustomTooltip />} />
+                          <Area type="monotone" dataKey="count" name="Görev" stroke="#10b981" strokeWidth={2} fillOpacity={1} fill="url(#colorTasks)" />
+                        </AreaChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
 
-                  {/* Kategori Dağılımı */}
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-6">Kategori Dağılımı (Görevler)</p>
-                    <div className="space-y-3">
-                      {Object.entries(
-                        completions.filter(c => c.item_type === 'habit').reduce((acc, c) => {
-                          const hab = habits.find(h => h.id === c.item_id)
-                          if (hab) {
-                            acc[hab.category] = (acc[hab.category] || 0) + 1
-                          }
-                          return acc
-                        }, {} as Record<string, number>)
-                      ).map(([cat, count]) => (
-                        <div key={cat} className="flex justify-between items-center p-3 border border-white/[0.04] bg-white/[0.01] rounded-lg">
-                          <span className="text-[12px] text-white uppercase tracking-widest">{cat === 'health' ? 'Sağlık' : cat === 'career' ? 'Kariyer' : cat === 'mind' ? 'Zihin' : cat === 'finance' ? 'Finans' : cat === 'personal' ? 'Kişisel' : cat}</span>
-                          <span className="text-[14px] font-bold text-white/70">{(count as number)} Tamamlama</span>
-                        </div>
-                      ))}
-                    </div>
+                    <ChartCard title="Kategori Dağılımı">
+                      {habitCategoryData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie data={habitCategoryData} cx="50%" cy="45%" innerRadius={50} outerRadius={80} paddingAngle={5} dataKey="value" stroke="none">
+                              {habitCategoryData.map((entry, index) => <Cell key={`cell-${index}`} fill={COLORS[index % COLORS.length]} />)}
+                            </Pie>
+                            <RechartsTooltip content={<CustomTooltip />} />
+                            <Legend wrapperStyle={{ fontSize: '10px', color: '#a1a1aa' }} iconType="circle" />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      ) : <EmptyChart />}
+                    </ChartCard>
                   </div>
                 </div>
               )}
 
               {tab === 'study' && (
-                <div className="space-y-8">
+                <div className="space-y-6">
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-blue-500/80 uppercase mb-2">Toplam Çalışma</p>
-                      <p className="text-[32px] font-bold text-blue-400">{totalStudyHours.toFixed(1)} <span className="text-lg text-blue-400/50">saat</span></p>
-                    </div>
-                    <div className="rounded-xl border border-blue-500/20 bg-blue-500/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-blue-500/80 uppercase mb-2">Haftalık Ortalama</p>
-                      <p className="text-[32px] font-bold text-blue-400">{(totalStudyHours / (uniqueDays || 1)).toFixed(1)} <span className="text-lg text-blue-400/50">saat/gün</span></p>
-                    </div>
+                    <StatCard title="Toplam Çalışma" value={totalStudyHours.toFixed(1)} suffix="saat" accent="text-blue-400" />
+                    <StatCard title="Günlük Ortalama" value={(totalStudyHours / (uniqueDays || 1)).toFixed(1)} suffix="saat" accent="text-blue-400" />
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-8">Son 7 Günlük Çalışma Süresi</p>
-                    <div className="flex items-end justify-between h-[150px] gap-2">
-                      {studyHoursByDay.map((d, i) => (
-                        <div key={i} className="flex-1 flex flex-col items-center gap-3">
-                          <div className="w-full bg-white/[0.03] rounded-t-sm flex items-end justify-center relative overflow-hidden" style={{ height: '100%' }}>
-                            <motion.div
-                              initial={{ height: 0 }}
-                              animate={{ height: `${(d.hours / maxStudyHours) * 100}%` }}
-                              transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
-                              className="w-full bg-blue-500/80"
-                            />
-                            {d.hours > 0 && (
-                              <span className="absolute bottom-2 text-[8px] text-white/80 font-bold">{d.hours}s</span>
-                            )}
-                          </div>
-                          <p className="text-[9px] text-zinc-500 uppercase tracking-widest">{d.date.slice(-2)}</p>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                    <ChartCard title="Son 14 Günlük Çalışma (Saat)">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <BarChart data={studyChartData} margin={{ top: 10, right: 0, left: -20, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} />
+                          <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.05)' }} />
+                          <Bar dataKey="hours" name="Saat" fill="#3b82f6" radius={[4, 4, 0, 0]} maxBarSize={40} />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
 
-                  {/* Derslere Göre Dağılım */}
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-6">Derslere Göre Dağılım</p>
-                    <div className="space-y-4">
-                      {sortedSubjects.length === 0 ? (
-                        <p className="text-[10px] text-zinc-600 tracking-widest uppercase text-center py-4">Veri yok</p>
-                      ) : sortedSubjects.map(([subject, hours], i) => (
-                        <div key={i}>
-                          <div className="flex justify-between items-center mb-2">
-                            <span className="text-[12px] text-white">{subject}</span>
-                            <span className="text-[11px] text-zinc-400">{hours.toFixed(1)} saat</span>
-                          </div>
-                          <div className="h-1.5 w-full bg-white/[0.05] rounded-full overflow-hidden">
-                            <motion.div
-                              className="h-full bg-blue-500/60 rounded-full"
-                              initial={{ width: 0 }}
-                              animate={{ width: `${(hours / (sortedSubjects[0][1] || 1)) * 100}%` }}
-                              transition={{ duration: 1, delay: i * 0.1 }}
-                            />
-                          </div>
-                        </div>
-                      ))}
-                    </div>
+                    <ChartCard title="Derslere Göre Dağılım">
+                      {subjectChartData.length > 0 ? (
+                        <ResponsiveContainer width="100%" height="100%">
+                          <BarChart data={subjectChartData} layout="vertical" margin={{ top: 0, right: 20, left: 20, bottom: 0 }}>
+                            <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" horizontal={false} />
+                            <XAxis type="number" hide />
+                            <YAxis dataKey="name" type="category" axisLine={false} tickLine={false} tick={{fill: '#e4e4e7', fontSize: 11}} width={100} />
+                            <RechartsTooltip content={<CustomTooltip />} cursor={{ fill: 'rgba(255,255,255,0.02)' }} />
+                            <Bar dataKey="hours" name="Saat" fill="#6366f1" radius={[0, 4, 4, 0]} barSize={20} />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      ) : <EmptyChart />}
+                    </ChartCard>
                   </div>
                 </div>
               )}
 
               {tab === 'wallet' && (
-                <div className="space-y-8">
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-emerald-500/80 uppercase mb-2">Toplam Giren Para</p>
-                      <p className="text-[32px] font-bold text-emerald-400">₺{incomes.toFixed(2)}</p>
-                    </div>
-                    <div className="rounded-xl border border-red-500/20 bg-red-500/[0.02] p-6">
-                      <p className="text-[9px] tracking-[0.35em] text-red-500/80 uppercase mb-2">Toplam Çıkan Para</p>
-                      <p className="text-[32px] font-bold text-red-400">₺{expenses.toFixed(2)}</p>
-                    </div>
+                <div className="space-y-6">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                    <StatCard title="Toplam Gelir" value={`₺${incomes.toFixed(0)}`} accent="text-emerald-400" />
+                    <StatCard title="Toplam Gider" value={`₺${expenses.toFixed(0)}`} accent="text-red-400" />
+                    <StatCard title="Net Bakiye" value={`₺${(incomes - expenses).toFixed(0)}`} accent={incomes >= expenses ? 'text-white' : 'text-red-400'} />
                   </div>
 
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-6">Gelir / Gider Oranı</p>
-                    <div className="h-4 w-full bg-white/[0.05] rounded-full overflow-hidden flex">
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(incomes / (incomes + expenses || 1)) * 100}%` }} className="h-full bg-emerald-500" />
-                      <motion.div initial={{ width: 0 }} animate={{ width: `${(expenses / (incomes + expenses || 1)) * 100}%` }} className="h-full bg-red-500" />
-                    </div>
-                    <div className="flex justify-between mt-3 text-[10px] tracking-widest uppercase">
-                      <span className="text-emerald-500">%{Math.round((incomes / (incomes + expenses || 1)) * 100)}</span>
-                      <span className="text-red-500">%{Math.round((expenses / (incomes + expenses || 1)) * 100)}</span>
-                    </div>
-                  </div>
+                  <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                    <ChartCard title="Son 14 Günlük Para Akışı" className="lg:col-span-2">
+                      <ResponsiveContainer width="100%" height="100%">
+                        <LineChart data={walletFlowData} margin={{ top: 10, right: 10, left: -10, bottom: 0 }}>
+                          <CartesianGrid strokeDasharray="3 3" stroke="rgba(255,255,255,0.05)" vertical={false} />
+                          <XAxis dataKey="date" axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} dy={10} />
+                          <YAxis axisLine={false} tickLine={false} tick={{fill: '#71717a', fontSize: 10}} />
+                          <RechartsTooltip content={<CustomTooltip />} />
+                          <Legend wrapperStyle={{ fontSize: '10px' }} />
+                          <Line type="monotone" dataKey="Gelir" stroke="#10b981" strokeWidth={2} dot={false} activeDot={{r: 4}} />
+                          <Line type="monotone" dataKey="Gider" stroke="#ef4444" strokeWidth={2} dot={false} activeDot={{r: 4}} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </ChartCard>
 
-                  {/* Hesaplara Göre Bakiye */}
-                  <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] p-6">
-                    <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-6">Hesaplara Göre Bakiye</p>
-                    <div className="space-y-3">
-                      {accounts.map(acc => {
-                        const accTxs = transactions.filter(t => t.account_id === acc.id)
-                        const accBal = accTxs.reduce((a, b) => a + (b.type === 'income' ? b.amount : -b.amount), 0)
-                        return (
-                          <div key={acc.id} className="flex justify-between items-center p-3 border border-white/[0.04] bg-white/[0.01] rounded-lg">
-                            <div className="flex items-center gap-3">
-                              <div className="w-2 h-2 rounded-full" style={{ backgroundColor: acc.color }} />
-                              <span className="text-[12px] text-white">{acc.name}</span>
+                    <ChartCard title="Hesap Bakiyeleri">
+                      <div className="flex flex-col gap-3 justify-center h-full pt-4">
+                        {accounts.map(acc => {
+                          const accTxs = transactions.filter(t => t.account_id === acc.id)
+                          const accBal = accTxs.reduce((a, b) => a + (b.type === 'income' ? b.amount : -b.amount), 0)
+                          return (
+                            <div key={acc.id} className="flex justify-between items-center p-4 border border-white/[0.04] bg-white/[0.01] rounded-xl hover:bg-white/[0.02] transition-colors">
+                              <div className="flex items-center gap-3">
+                                <div className="w-3 h-3 rounded-full shadow-[0_0_10px_rgba(255,255,255,0.1)]" style={{ backgroundColor: acc.color, boxShadow: `0 0 12px ${acc.color}40` }} />
+                                <span className="text-[13px] text-white font-medium">{acc.name}</span>
+                              </div>
+                              <span className={`text-[15px] font-bold tracking-tight ${accBal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
+                                ₺{accBal.toFixed(0)}
+                              </span>
                             </div>
-                            <span className={`text-[14px] font-bold ${accBal >= 0 ? 'text-emerald-400' : 'text-red-400'}`}>
-                              ₺{accBal.toFixed(2)}
-                            </span>
-                          </div>
-                        )
-                      })}
-                    </div>
+                          )
+                        })}
+                      </div>
+                    </ChartCard>
                   </div>
                 </div>
               )}
@@ -285,3 +284,34 @@ export default function AnalyticsPage() {
   )
 }
 
+function StatCard({ title, value, suffix, accent = "text-white" }: { title: string, value: string | number, suffix?: string, accent?: string }) {
+  return (
+    <div className="relative rounded-2xl border border-white/[0.06] bg-white/[0.015] p-6 overflow-hidden">
+      <div className="absolute top-0 left-6 right-6 h-[1px] bg-white/[0.08] rounded-full" />
+      <p className="text-[10px] tracking-[0.3em] text-zinc-500 uppercase mb-3">{title}</p>
+      <p className={`text-[36px] font-bold leading-none tabular-nums tracking-tight ${accent}`}>
+        {value}
+        {suffix && <span className="text-[14px] ml-2 text-zinc-500 tracking-normal font-normal">{suffix}</span>}
+      </p>
+    </div>
+  )
+}
+
+function ChartCard({ title, children, className = "" }: { title: string, children: React.ReactNode, className?: string }) {
+  return (
+    <div className={`rounded-2xl border border-white/[0.06] bg-white/[0.015] p-6 flex flex-col ${className}`}>
+      <p className="text-[10px] tracking-[0.3em] text-zinc-400 uppercase mb-6 flex-shrink-0">{title}</p>
+      <div className="flex-1 min-h-[250px]">
+        {children}
+      </div>
+    </div>
+  )
+}
+
+function EmptyChart() {
+  return (
+    <div className="w-full h-full flex flex-col items-center justify-center border border-dashed border-white/10 rounded-xl">
+      <p className="text-[10px] tracking-widest text-zinc-600 uppercase">Yeterli Veri Yok</p>
+    </div>
+  )
+}

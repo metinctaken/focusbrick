@@ -209,57 +209,35 @@ export default function WalletPage() {
           <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}>
 
             {/* Global top stat */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-4 gap-3 mb-8">
-              <div className="col-span-1 sm:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent p-5 relative overflow-hidden">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+              <div className="col-span-1 md:col-span-2 rounded-2xl border border-white/[0.08] bg-gradient-to-br from-white/[0.04] to-transparent p-6 relative overflow-hidden">
                 <div className="absolute top-0 right-0 w-32 h-32 rounded-full bg-white/[0.02] -translate-y-8 translate-x-8" />
                 <p className="text-[9px] tracking-[0.4em] text-zinc-500 uppercase mb-3">Toplam Net Bakiye</p>
                 <p className={`text-[36px] font-bold leading-none ${totalAll >= 0 ? 'text-white' : 'text-red-400'}`}>
                   {formatCurrency(totalAll)}
                 </p>
-                <p className="text-[9px] text-zinc-600 mt-2">{accounts.length} hesap</p>
+                <p className="text-[9px] text-zinc-600 mt-3">{accounts.length} hesap</p>
               </div>
-              {accounts.slice(0, 2).map(acc => {
+              
+              {accounts.map(acc => {
                 const txs = transactions.filter(t => t.account_id === acc.id)
                 const bal = txs.reduce((a, t) => a + (t.type === 'income' ? t.amount : -t.amount), 0)
                 return (
-                  <div key={acc.id} onClick={() => setActiveTab(acc.id)} className={`rounded-2xl border p-5 cursor-pointer transition-all duration-200 relative overflow-hidden
+                  <div key={acc.id} onClick={() => setActiveTab(acc.id)} className={`rounded-2xl border p-6 cursor-pointer transition-all duration-200 relative overflow-hidden
                     ${activeTab === acc.id ? 'border-white/20 bg-white/[0.04]' : 'border-white/[0.06] bg-white/[0.01] hover:border-white/10'}`}>
-                    <div className="absolute top-0 left-0 right-0 h-[2px]" style={{ background: `linear-gradient(to right, transparent, ${acc.color}80, transparent)` }} />
-                    <div className="w-2 h-2 rounded-full mb-3" style={{ backgroundColor: acc.color }} />
-                    <p className="text-[9px] tracking-widest text-zinc-500 uppercase truncate mb-2">{acc.name}</p>
-                    <p className={`text-[22px] font-bold leading-none ${bal >= 0 ? 'text-white' : 'text-red-400'}`}>{formatCurrency(bal)}</p>
+                    <div className="absolute top-0 left-0 right-0 h-[3px]" style={{ background: `linear-gradient(to right, transparent, ${acc.color}80, transparent)` }} />
+                    <div className="flex justify-between items-start mb-3">
+                      <div className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: acc.color }} />
+                    </div>
+                    <p className="text-[10px] tracking-widest text-zinc-400 uppercase truncate mb-2">{acc.name}</p>
+                    <p className={`text-[24px] font-bold leading-none ${bal >= 0 ? 'text-white' : 'text-red-400'}`}>{formatCurrency(bal)}</p>
                   </div>
                 )
               })}
             </div>
 
-            <div className="flex flex-col md:flex-row gap-6">
-              {/* Left: Account list */}
-              <div className="w-full md:w-[220px] flex-shrink-0">
-                <p className="text-[9px] tracking-[0.4em] text-zinc-600 uppercase mb-3 hidden md:block">Hesaplarım</p>
-                <div className="flex md:flex-col gap-2 overflow-x-auto md:overflow-visible pb-2 md:pb-0 snap-x hide-scrollbar">
-                  {accounts.map(acc => {
-                    const txs    = transactions.filter(t => t.account_id === acc.id)
-                    const bal    = txs.reduce((a, t) => a + (t.type === 'income' ? t.amount : -t.amount), 0)
-                    const isActive = activeTab === acc.id
-                    return (
-                      <div key={acc.id} onClick={() => setActiveTab(acc.id)}
-                        className={`group relative rounded-xl p-3 md:p-4 cursor-pointer transition-all duration-200 overflow-hidden flex-shrink-0 w-[140px] md:w-full snap-start
-                          ${isActive ? 'bg-white/[0.06] border border-white/15' : 'bg-white/[0.02] border border-white/[0.04] hover:border-white/10'}`}>
-                        <div className="absolute left-0 top-0 bottom-0 w-[3px] rounded-r-full" style={{ backgroundColor: acc.color }} />
-                        <div className="pl-2 md:pl-3 flex flex-col md:flex-row md:justify-between md:items-center">
-                          <div>
-                            <p className={`text-[11px] md:text-[12px] font-semibold truncate ${isActive ? 'text-white' : 'text-zinc-400'}`}>{acc.name}</p>
-                            <p className={`text-[10px] md:text-[11px] font-mono mt-0.5 ${bal >= 0 ? 'text-zinc-400' : 'text-red-400'}`}>{formatCurrency(bal)}</p>
-                          </div>
-                        </div>
-                      </div>
-                    )
-                  })}
-                </div>
-              </div>
-
-              {/* Right: Details */}
+            <div className="flex flex-col gap-6">
+              {/* Right: Active account details */}
               <div className="flex-1 min-w-0">
                 {activeTab && activeAcc ? (
                   <>

@@ -2,10 +2,11 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
+import { motion, AnimatePresence } from 'framer-motion'
 
 const NAV = [
   { href: '/',         label: 'Ana Sayfa',       icon: HomeIcon },
+  { href: '/timer',    label: 'Sayaç',           icon: ClockIcon },
   { href: '/schedule', label: 'Ders Programı',   icon: CalendarIcon },
   { href: '/tasks',    label: 'Günlük Görevler', icon: CheckIcon },
   { href: '/wall',     label: 'Duvar',           icon: BrickIcon },
@@ -15,9 +16,9 @@ const NAV = [
 ]
 
 export default function Sidebar({ 
-  isCollapsed, toggle 
+  isCollapsed, toggle, mobileMenuOpen, setMobileMenuOpen
 }: { 
-  isCollapsed?: boolean, toggle?: () => void 
+  isCollapsed?: boolean, toggle?: () => void, mobileMenuOpen?: boolean, setMobileMenuOpen?: (val: boolean) => void
 }) {
   const path = usePathname()
   const router = useRouter()
@@ -109,20 +110,49 @@ export default function Sidebar({
       </div>
     </aside>
       
-      {/* MOBILE BOTTOM NAV */}
-      <nav className="md:hidden fixed bottom-0 left-0 right-0 h-[70px] bg-zinc-950/95 backdrop-blur-md border-t border-white/[0.06] z-50 flex items-center justify-around px-2 pb-[env(safe-area-inset-bottom)] shadow-[0_-10px_30px_rgba(0,0,0,0.5)]">
-        {NAV.map(({ href, label, icon: Icon }) => {
-          const active = path === href
-          return (
-            <Link key={href} href={href} className={`flex-1 flex flex-col items-center justify-center gap-1.5 py-2 transition-all ${active ? 'opacity-100 scale-110' : 'opacity-50 hover:opacity-100'}`}>
-              <Icon className={`w-5 h-5 ${active ? 'text-white' : 'text-zinc-500'}`} />
-              <span className={`text-[8px] font-bold tracking-widest uppercase ${active ? 'text-white' : 'text-zinc-500'}`}>
-                {label.split(' ')[0]} {/* Shortened name */}
-              </span>
-            </Link>
-          )
-        })}
-      </nav>
+      {/* MOBILE FULLSCREEN OVERLAY MENU */}
+      <AnimatePresence>
+        {mobileMenuOpen && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -20 }}
+            transition={{ duration: 0.2 }}
+            className="md:hidden fixed inset-0 z-50 bg-zinc-950/95 backdrop-blur-xl flex flex-col"
+          >
+            <div className="flex items-center justify-between px-6 py-4 border-b border-white/[0.05]">
+              <span className="text-[10px] tracking-[0.5em] text-white uppercase font-medium">Menü</span>
+              <button onClick={() => setMobileMenuOpen?.(false)} className="text-zinc-400 hover:text-white outline-none">
+                <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                </svg>
+              </button>
+            </div>
+            <nav className="flex-1 flex flex-col px-6 py-8 space-y-4 overflow-y-auto">
+              {NAV.map(({ href, label, icon: Icon }) => {
+                const active = path === href
+                return (
+                  <Link key={href} href={href} onClick={() => setMobileMenuOpen?.(false)}>
+                    <div className={`flex items-center gap-4 py-4 px-4 rounded-2xl transition-all duration-200 ${active ? 'bg-white/[0.06] text-white border border-white/10' : 'text-zinc-400 hover:text-white'}`}>
+                      <Icon className="w-6 h-6" />
+                      <span className="text-[14px] font-medium tracking-wide" style={{ fontFamily: 'var(--font-geist-sans)' }}>{label}</span>
+                    </div>
+                  </Link>
+                )
+              })}
+            </nav>
+            <div className="p-6 border-t border-white/[0.05]">
+              <button
+                onClick={() => { sessionStorage.removeItem('authenticated'); router.push('/login') }}
+                className="w-full flex items-center gap-4 py-4 px-4 rounded-2xl text-red-400 hover:bg-red-500/10 transition-all duration-200"
+              >
+                <LogoutIcon className="w-6 h-6" />
+                <span className="text-[14px] font-medium tracking-wide">Çıkış Yap</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }
@@ -187,3 +217,12 @@ function ShieldIcon({ className }: { className?: string }) {
     </svg>
   )
 }
+
+function ClockIcon({ className }: { className?: string }) {
+  return (
+    <svg className={className} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+      <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 1 1-18 0 9 9 0 0 1 18 0Z" />
+    </svg>
+  )
+}
+

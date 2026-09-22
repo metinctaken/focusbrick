@@ -43,6 +43,14 @@ const CATEGORY_LABELS: Record<string, string> = {
   sport: 'Spor', health: 'Sağlık', study: 'Çalışma', general: 'Genel'
 }
 
+function getGreeting(): { salutation: string; subtext: string } {
+  const h = new Date().getHours()
+  if (h >= 5 && h < 12)  return { salutation: 'Günaydın',       subtext: 'Harika bir gün seni bekliyor.' }
+  if (h >= 12 && h < 17) return { salutation: 'İyi Öğleden Sonralar', subtext: 'Günün ortasındasın, devam et.' }
+  if (h >= 17 && h < 21) return { salutation: 'İyi Akşamlar',    subtext: 'Günü iyi kapattın mı?' }
+  return                          { salutation: 'İyi Geceler',    subtext: 'Dinlenme vakti yaklaşıyor.' }
+}
+
 // ── Component ─────────────────────────────────────────────────────────────────
 export default function Home() {
   const [scheduleItems, setScheduleItems] = useState<ScheduleItem[]>([])
@@ -57,6 +65,7 @@ export default function Home() {
 
   const dayIndex = todayDayIndex()
   const todayDate = todayISO()
+  const { salutation, subtext } = getGreeting()
 
   useEffect(() => { loadAll() }, [])
 
@@ -180,148 +189,163 @@ export default function Home() {
         )}
       </AnimatePresence>
 
-      <div className="max-w-3xl mx-auto" style={{ fontFamily: 'var(--font-geist-sans)' }}>
+      <div className="w-full max-w-[1400px] mx-auto" style={{ fontFamily: 'var(--font-geist-sans)' }}>
 
         {/* ── Greeting ────────────────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 16 }}
           animate={{ opacity: 1, y: 0 }}
           transition={{ duration: 0.7, ease: [0.22, 1, 0.36, 1] }}
-          className="mb-10 flex flex-col md:flex-row md:items-end justify-between gap-6"
+          className="mb-8 p-6 md:p-8 rounded-3xl border border-white/10 bg-white/[0.02] backdrop-blur-sm relative overflow-hidden"
         >
-          <div>
-            <p className="text-[10px] tracking-[0.5em] text-zinc-600 uppercase mb-3">
-              {DAY_NAMES[dayIndex]}, {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
-            </p>
-            <h1 className="text-[38px] font-bold text-white leading-none tracking-tight mb-1">
-              Merhaba,
-            </h1>
-            <h1 className="text-[38px] font-bold leading-none tracking-tight"
-              style={{
-                background: 'linear-gradient(to bottom, #fff 0%, #71717a 100%)',
-                WebkitBackgroundClip: 'text',
-                WebkitTextFillColor: 'transparent',
-              }}>
-              Metinc.
-            </h1>
-          </div>
+          {/* Subtle background glow */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-white/5 rounded-full blur-[80px] -translate-y-1/2 translate-x-1/3 pointer-events-none" />
 
-          <div className="flex flex-col items-start md:items-end">
-            <p className="text-[9px] tracking-[0.4em] text-zinc-600 uppercase mb-3">19 Haziran 2027 Hedefi</p>
-            <Countdown />
+          <div className="flex flex-col md:flex-row md:items-end justify-between gap-8 relative z-10">
+            <div>
+              <div className="flex items-center gap-3 mb-4">
+                <span className="h-2 w-2 rounded-full bg-emerald-500 shadow-[0_0_10px_rgba(16,185,129,0.5)]" />
+                <p className="text-[10px] tracking-[0.4em] text-zinc-400 uppercase">
+                  {DAY_NAMES[dayIndex]}, {new Date().toLocaleDateString('tr-TR', { day: 'numeric', month: 'long', year: 'numeric' })}
+                </p>
+              </div>
+              
+              <h1 className="text-[36px] md:text-[44px] font-bold text-white leading-none tracking-tight mb-2">
+                {salutation},
+              </h1>
+              <h1 className="text-[36px] md:text-[44px] font-bold leading-none tracking-tight"
+                style={{
+                  background: 'linear-gradient(to bottom, #fff 0%, #52525b 100%)',
+                  WebkitBackgroundClip: 'text',
+                  WebkitTextFillColor: 'transparent',
+                }}>
+                Metinc.
+              </h1>
+            </div>
+
+            <div className="flex flex-col items-start md:items-end bg-black/40 p-4 rounded-2xl border border-white/5">
+              <p className="text-[9px] tracking-[0.4em] text-zinc-500 uppercase mb-3 flex items-center gap-2">
+                <span className="w-1.5 h-1.5 rounded-full bg-orange-500" />
+                19 Haziran 2027 Hedefi
+              </p>
+              <Countdown />
+            </div>
           </div>
         </motion.div>
 
-        {/* ── Divider ────────────────────────────────────────────────── */}
-        <motion.div
-          initial={{ scaleX: 0 }} animate={{ scaleX: 1 }}
-          transition={{ duration: 0.8, delay: 0.2, ease: [0.22, 1, 0.36, 1] }}
-          className="h-px w-full bg-gradient-to-r from-transparent via-white/15 to-transparent mb-8"
-        />
-
-        {/* ── Stats Row ───────────────────────────────────────────────── */}
+        {/* ── Stats & Wallet Row ──────────────────────────────────────── */}
         <motion.div
           initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.3 }}
-          className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4"
+          transition={{ duration: 0.6, delay: 0.2 }}
+          className="grid grid-cols-1 xl:grid-cols-7 gap-3 mb-6"
         >
-          {[
-            { label: 'Toplam Görev', value: totalItems },
-            { label: 'Tamamlandı', value: doneItems  },
-            { label: 'Kalan',      value: remaining  },
-            { label: 'Başarı Oranı', value: `%${pct}` },
-          ].map((s, i) => (
-            <div key={i} className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-5 py-4">
-              <AnimatePresence mode="wait">
-                <motion.div
-                  key={s.value}
-                  initial={{ opacity: 0, y: -6 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className="text-[28px] font-bold leading-none mb-1 text-white"
-                >
-                  {s.value}
-                </motion.div>
-              </AnimatePresence>
-              <p className="text-[9px] tracking-[0.35em] text-zinc-600 uppercase">{s.label}</p>
+          {/* Task Stats */}
+          <div className="xl:col-span-4 grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: 'Toplam', value: totalItems },
+              { label: 'Biten',  value: doneItems  },
+              { label: 'Kalan',  value: remaining  },
+              { label: 'Başarı', value: `%${pct}`  },
+            ].map((s, i) => (
+              <div key={i} className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-5 py-4 overflow-hidden">
+                <div className="absolute top-0 left-4 right-4 h-[1px] bg-white/[0.08] rounded-full" />
+                <AnimatePresence mode="wait">
+                  <motion.p
+                    key={s.value}
+                    initial={{ opacity: 0, y: 6 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    transition={{ duration: 0.3 }}
+                    className="text-[28px] font-bold leading-none text-white mb-3 tabular-nums"
+                  >
+                    {s.value}
+                  </motion.p>
+                </AnimatePresence>
+                <p className="text-[9px] tracking-[0.32em] text-zinc-600 uppercase">{s.label}</p>
+              </div>
+            ))}
+          </div>
+
+          {/* Wallet Stats */}
+          <div className="xl:col-span-3 grid grid-cols-3 gap-3">
+            <div className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-5 py-4 overflow-hidden">
+              <div className="absolute top-0 left-4 right-4 h-[1px] bg-emerald-500/30 rounded-full" />
+              <p className="text-[9px] tracking-[0.3em] text-zinc-600 uppercase mb-3">Gelir</p>
+              <p className="text-[20px] font-bold text-emerald-400 leading-none tabular-nums">₺{todayIncome.toFixed(0)}</p>
             </div>
-          ))}
+            <div className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-5 py-4 overflow-hidden">
+              <div className="absolute top-0 left-4 right-4 h-[1px] bg-red-500/30 rounded-full" />
+              <p className="text-[9px] tracking-[0.3em] text-zinc-600 uppercase mb-3">Gider</p>
+              <p className="text-[20px] font-bold text-red-400 leading-none tabular-nums">₺{todayExpense.toFixed(0)}</p>
+            </div>
+            <div className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-5 py-4 overflow-hidden">
+              <div className={`absolute top-0 left-4 right-4 h-[1px] rounded-full ${totalBalance >= 0 ? 'bg-white/[0.08]' : 'bg-red-500/30'}`} />
+              <p className="text-[9px] tracking-[0.3em] text-zinc-600 uppercase mb-3">Kasa</p>
+              <p className={`text-[20px] font-bold leading-none tabular-nums ${totalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>
+                ₺{totalBalance.toFixed(0)}
+              </p>
+            </div>
+          </div>
         </motion.div>
 
-        {/* ── Mini Wallet Analytics ────────────────────────────────────── */}
-        <motion.div
-          initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }}
-          transition={{ duration: 0.6, delay: 0.35 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-8"
-        >
-          <div className="rounded-xl border border-emerald-500/20 bg-emerald-500/[0.02] px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-[9px] tracking-[0.35em] text-emerald-500/70 uppercase mb-1">Bugünkü Gelir</p>
-              <p className="text-[24px] font-bold text-emerald-400 leading-none">₺{todayIncome.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className="rounded-xl border border-red-500/20 bg-red-500/[0.02] px-5 py-4 flex items-center justify-between">
-            <div>
-              <p className="text-[9px] tracking-[0.35em] text-red-500/70 uppercase mb-1">Bugünkü Gider</p>
-              <p className="text-[24px] font-bold text-red-400 leading-none">₺{todayExpense.toFixed(2)}</p>
-            </div>
-          </div>
-          <div className={`rounded-xl border px-5 py-4 flex items-center justify-between ${totalBalance >= 0 ? 'border-white/[0.07] bg-white/[0.02]' : 'border-red-500/20 bg-red-500/[0.02]'}`}>
-            <div>
-              <p className="text-[9px] tracking-[0.35em] text-zinc-600 uppercase mb-1">Toplam Kasa</p>
-              <p className={`text-[24px] font-bold leading-none ${totalBalance >= 0 ? 'text-white' : 'text-red-400'}`}>₺{totalBalance.toFixed(2)}</p>
-            </div>
-          </div>
-        </motion.div>
-
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 mb-8">
-          {/* ── Progress bar ────────────────────────────────────────────── */}
-          {totalItems > 0 ? (
-            <motion.div
-              initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-              transition={{ delay: 0.4 }}
-              className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-5 py-6 flex flex-col justify-center"
-            >
-              <div className="flex justify-between mb-3">
-                <span className="text-[10px] text-white tracking-widest uppercase font-bold">Bugünkü İlerleme</span>
-                <span className="text-[11px] font-bold text-white/80">%{pct}</span>
-              </div>
-              <div className="h-[4px] w-full rounded-full bg-white/[0.06] overflow-hidden mb-2">
-                <motion.div
-                  className="h-full rounded-full bg-white/70"
-                  initial={{ width: 0 }}
-                  animate={{ width: `${pct}%` }}
-                  transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.5 }}
-                />
-              </div>
-              <p className="text-[9px] text-zinc-500 text-right">{doneItems} / {totalItems} görev</p>
-            </motion.div>
-          ) : (
-            <div className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-5 py-6 flex flex-col justify-center items-center text-center">
-              <p className="text-[10px] text-zinc-500 tracking-widest uppercase">Bugün için görev yok</p>
-            </div>
-          )}
-
-          {/* ── 7-Day Activity Chart ────────────────────────────────────── */}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3 mb-6">
+          {/* ── Progress ─────────────────────────────────────────────── */}
           <motion.div
             initial={{ opacity: 0 }} animate={{ opacity: 1 }}
-            transition={{ delay: 0.45 }}
-            className="rounded-xl border border-white/[0.07] bg-white/[0.02] px-5 py-5"
+            transition={{ delay: 0.35 }}
+            className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-6 py-5 overflow-hidden"
           >
-            <p className="text-[9px] tracking-[0.35em] text-zinc-500 uppercase mb-4">Aktivite Grafiği</p>
-            <div className="flex items-end justify-between h-[60px] gap-2">
-              {tasksByDay.map((d, i) => (
-                <div key={i} className="flex-1 flex flex-col items-center gap-2 h-full">
-                  <div className="w-full bg-white/[0.03] rounded-t-sm flex items-end justify-center relative overflow-hidden" style={{ height: '100%' }}>
-                    <motion.div
-                      initial={{ height: 0 }}
-                      animate={{ height: `${(d.count / maxTasks) * 100}%` }}
-                      transition={{ duration: 1, delay: i * 0.1, ease: 'easeOut' }}
-                      className={`w-full ${i === 6 ? 'bg-white/90' : 'bg-white/40'}`}
-                    />
+            <div className="absolute top-0 left-4 right-4 h-[1px] bg-white/[0.06] rounded-full" />
+            <div className="flex justify-between items-start mb-5">
+              <div>
+                <p className="text-[9px] tracking-[0.35em] text-zinc-600 uppercase mb-2">Bugünkü İlerleme</p>
+                <p className="text-[32px] font-bold text-white leading-none tabular-nums">%{pct}</p>
+              </div>
+              <span className="text-[10px] text-zinc-700 tracking-widest mt-1">{doneItems} / {totalItems}</span>
+            </div>
+            {/* Track */}
+            <div className="h-[3px] w-full rounded-full bg-white/[0.05] overflow-hidden">
+              <motion.div
+                className="h-full rounded-full bg-white/80"
+                initial={{ width: 0 }}
+                animate={{ width: totalItems > 0 ? `${pct}%` : '0%' }}
+                transition={{ duration: 1.2, ease: [0.22, 1, 0.36, 1], delay: 0.5 }}
+                style={{ boxShadow: pct > 0 ? '0 0 8px rgba(255,255,255,0.3)' : 'none' }}
+              />
+            </div>
+            {totalItems === 0 && (
+              <p className="text-[10px] text-zinc-700 tracking-[0.3em] uppercase mt-2">Bugün görev yok</p>
+            )}
+          </motion.div>
+
+          {/* ── 7-Day Activity Chart ──────────────────────────────────── */}
+          <motion.div
+            initial={{ opacity: 0 }} animate={{ opacity: 1 }}
+            transition={{ delay: 0.4 }}
+            className="relative rounded-2xl border border-white/[0.05] bg-white/[0.01] px-6 py-5 overflow-hidden"
+          >
+            <div className="absolute top-0 left-4 right-4 h-[1px] bg-white/[0.06] rounded-full" />
+            <p className="text-[9px] tracking-[0.35em] text-zinc-600 uppercase mb-5">7 Günlük Aktivite</p>
+            <div className="flex items-end justify-between gap-1.5" style={{ height: 56 }}>
+              {tasksByDay.map((d, i) => {
+                const isToday = i === 6
+                const heightPct = maxTasks > 0 ? (d.count / maxTasks) * 100 : 0
+                return (
+                  <div key={i} className="flex-1 flex flex-col items-center gap-1.5 h-full">
+                    <div className="w-full flex items-end justify-center rounded-sm overflow-hidden" style={{ height: '100%', background: 'rgba(255,255,255,0.02)' }}>
+                      <motion.div
+                        initial={{ height: 0 }}
+                        animate={{ height: `${heightPct}%` }}
+                        transition={{ duration: 0.9, delay: i * 0.08, ease: 'easeOut' }}
+                        className={`w-full rounded-sm ${isToday ? 'bg-white/90' : 'bg-white/25'}`}
+                        style={isToday ? { boxShadow: '0 0 8px rgba(255,255,255,0.2)' } : {}}
+                      />
+                    </div>
+                    <p className={`text-[8px] uppercase tracking-widest leading-none ${isToday ? 'text-white font-bold' : 'text-zinc-700'}`}>
+                      {d.date.slice(-2)}
+                    </p>
                   </div>
-                  <p className={`text-[8px] uppercase tracking-widest ${i === 6 ? 'text-white' : 'text-zinc-600'}`}>{d.date.slice(-2)}</p>
-                </div>
-              ))}
+                )
+              })}
             </div>
           </motion.div>
         </div>
@@ -404,14 +428,14 @@ export default function Home() {
 function Section({ title, count, children }: { title: string; count: number; children: React.ReactNode }) {
   return (
     <div>
-      <div className="flex items-center justify-between mb-4">
-        <p className="text-[10px] tracking-[0.4em] text-zinc-600 uppercase"
-          style={{ fontFamily: 'var(--font-geist-sans)' }}>
+      <div className="flex items-center gap-3 mb-3">
+        <p className="text-[9px] tracking-[0.4em] text-zinc-600 uppercase" style={{ fontFamily: 'var(--font-geist-sans)' }}>
           {title}
         </p>
-        <span className="text-[10px] text-zinc-700">{count}</span>
+        <div className="flex-1 h-[1px] bg-white/[0.04]" />
+        <span className="text-[9px] text-zinc-700 tabular-nums">{count}</span>
       </div>
-      <div className="space-y-[3px]">
+      <div className="space-y-[2px]">
         {children}
       </div>
     </div>
@@ -420,9 +444,8 @@ function Section({ title, count, children }: { title: string; count: number; chi
 
 function EmptyState({ text }: { text: string }) {
   return (
-    <div className="rounded-xl border border-white/[0.05] bg-white/[0.01] px-5 py-6 text-center">
-      <p className="text-[11px] tracking-widest text-zinc-700 uppercase"
-        style={{ fontFamily: 'var(--font-geist-sans)' }}>
+    <div className="rounded-xl border border-dashed border-white/[0.06] px-5 py-5 text-center">
+      <p className="text-[10px] tracking-[0.3em] text-zinc-700 uppercase" style={{ fontFamily: 'var(--font-geist-sans)' }}>
         {text}
       </p>
     </div>
@@ -443,28 +466,34 @@ function TaskRow({
 }) {
   return (
     <motion.div
-      initial={{ opacity: 0, x: -8 }}
-      animate={{ opacity: 1, x: 0 }}
-      transition={{ delay: index * 0.05, duration: 0.4, ease: [0.22, 1, 0.36, 1] }}
+      initial={{ opacity: 0, y: 4 }}
+      animate={{ opacity: 1, y: 0 }}
+      whileTap={{ scale: 0.985 }}
+      transition={{ delay: index * 0.04, duration: 0.35, ease: [0.22, 1, 0.36, 1] }}
       onClick={onClick}
-      className={`flex items-center gap-4 px-4 py-3.5 rounded-xl border cursor-pointer transition-all duration-200
+      className={`relative group flex items-center gap-3 px-4 py-3 rounded-xl border cursor-pointer transition-all duration-150 overflow-hidden
         ${done
-          ? 'border-white/[0.05] bg-white/[0.02]'
-          : 'border-white/[0.07] bg-white/[0.02] hover:border-white/[0.12] hover:bg-white/[0.04]'
+          ? 'border-white/[0.04] bg-transparent'
+          : 'border-white/[0.06] bg-white/[0.015] hover:border-white/[0.1] hover:bg-white/[0.03]'
         }`}
     >
-      {/* Accent bar */}
-      {accent && (
-        <div className="w-[3px] h-8 rounded-full flex-shrink-0 opacity-70"
-          style={{ backgroundColor: accent }} />
+      {/* Ripple effect overlay on tap */}
+      <div className="absolute inset-0 bg-white opacity-0 group-active:opacity-[0.02] transition-opacity duration-75" />
+
+      {/* Accent dot */}
+      {accent ? (
+        <span
+          className="w-[5px] h-[5px] rounded-full flex-shrink-0 transition-opacity duration-200 relative z-10"
+          style={{ backgroundColor: accent, opacity: done ? 0.25 : 0.75 }}
+        />
+      ) : (
+        <span className="w-[5px] h-[5px] rounded-full flex-shrink-0 bg-zinc-700 relative z-10" />
       )}
 
       {/* Checkbox */}
-      <div className={`flex-shrink-0 h-[18px] w-[18px] rounded-md border transition-all duration-200 flex items-center justify-center
-        ${done
-          ? 'border-white/40 bg-white/10'
-          : 'border-white/20'
-        }`}>
+      <div className={`relative z-10 flex-shrink-0 h-[16px] w-[16px] rounded-[4px] border transition-all duration-200 flex items-center justify-center
+        ${done ? 'border-white/25 bg-white/[0.08]' : 'border-white/[0.12] group-hover:border-white/25'}`}
+      >
         <AnimatePresence>
           {done && (
             <motion.svg
@@ -472,9 +501,9 @@ function TaskRow({
               initial={{ scale: 0, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0, opacity: 0 }}
-              transition={{ type: 'spring', stiffness: 400, damping: 20 }}
-              className="w-2.5 h-2.5 text-white/70"
-              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}
+              transition={{ type: 'spring', stiffness: 500, damping: 25 }}
+              className="w-2 h-2 text-white/50"
+              fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3.5}
             >
               <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
             </motion.svg>
@@ -483,24 +512,31 @@ function TaskRow({
       </div>
 
       {/* Text */}
-      <div className="flex-1 min-w-0">
+      <div className="flex-1 min-w-0 relative z-10">
         <p className={`text-[13px] font-medium leading-none transition-all duration-200
-          ${done ? 'text-zinc-600 line-through' : 'text-white'}`}
-          style={{ fontFamily: 'var(--font-geist-sans)' }}>
+          ${done ? 'text-zinc-600 line-through decoration-zinc-700' : 'text-zinc-200 group-hover:text-white'}`}
+          style={{ fontFamily: 'var(--font-geist-sans)' }}
+        >
           {label}
         </p>
         {sub && (
-          <p className="text-[11px] text-zinc-700 mt-1 leading-none"
-            style={{ fontFamily: 'var(--font-geist-sans)' }}>
+          <p className="text-[10px] text-zinc-700 mt-1.5 leading-none transition-colors group-hover:text-zinc-500" style={{ fontFamily: 'var(--font-geist-sans)' }}>
             {sub}
           </p>
         )}
       </div>
 
       {/* Meta */}
-      <span className="text-[10px] tracking-widest text-zinc-700 uppercase flex-shrink-0"
-        style={{ fontFamily: 'var(--font-geist-sans)' }}>
-        {loading ? '...' : meta}
+      <span className={`relative z-10 text-[9px] tracking-[0.25em] uppercase flex-shrink-0 transition-colors duration-200 ${done ? 'text-zinc-700' : 'text-zinc-500 group-hover:text-zinc-400'}`}
+        style={{ fontFamily: 'var(--font-geist-sans)' }}
+      >
+        {loading ? (
+          <span className="flex gap-0.5">
+            <motion.span animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0 }}>.</motion.span>
+            <motion.span animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.2 }}>.</motion.span>
+            <motion.span animate={{ opacity: [0.2, 1, 0.2] }} transition={{ duration: 1, repeat: Infinity, delay: 0.4 }}>.</motion.span>
+          </span>
+        ) : meta}
       </span>
     </motion.div>
   )
